@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from odoo import models, fields, api, exceptions
+from odoo import models, fields, api, exceptions, _
+from collections import defaultdict
 import logging
 import time
 from datetime import datetime
@@ -39,6 +40,7 @@ class StockMove(models.Model):
 
 class FormularioCliente(models.Model):
     _name = 'keralty_module.formulario.cliente'
+    _inherit = 'mail.thread'
     _description = 'Formulario Cliente'
     _rec_name = 'nombre_proyecto'
 
@@ -185,8 +187,8 @@ class FormularioCliente(models.Model):
         for sede_product_template in self.sede_seleccionada:
             for area in sede_product_template.bom_ids:
                 for linea_bom in area.bom_line_ids:
-                    for producto_seleccionado in self.producto_seleccionado:
-                        if producto_seleccionado.name in linea_bom.display_name:
+                    #for producto_seleccionado in self.producto_seleccionado:
+                        #if producto_seleccionado.name in linea_bom.display_name:
                             if "Cliente" in linea_bom.product_id.categ_id.name:
                                 if total_bom_line_ids:
                                     total_bom_line_ids += linea_bom
@@ -222,8 +224,57 @@ class FormularioCliente(models.Model):
         return True
 
     def action_confirmar_proyecto(self):
+        if self.state == 'confirmed':
+            raise exceptions.UserError("El formulario ya ha sido marcado como confirmado.")
+
+        usuarios_notifica = self.env['res.users'].search([('id', '=', 2)])
+
         self.state = 'confirmed'
+        # msg = _("El usuario %s ha confirmado un nuevo Formulario Cliente. %s<br/>" % self.env.user.name, self.name)
+        # base_url = self.env['ir.config_parameter'].get_param('web.base.url')
+        # base_url += '/web#id=%d&view_type=form&model=%s' % (self.id, self._name)
+        msg = ('Formulario Cliente \"{}\", confirmado por el usuario: \"{}\". \n\n'.format(self.nombre_proyecto, self.env.user.name)) #base_url))
+        # self.env['mail.activity'].create({'res_id': self.id,
+        #                                 'res_model_id': self.env['ir.model'].search([('model', '=', 'keralty_module.formulario.cliente')]).id,
+        #                                 'activity_type_id': 4,
+        #                                 # 'user_id': [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
+        #                                 # 'user_id': 2,
+        #                                 'user_id': usuarios_notifica.id,
+        #                                 'summary': 'Formulario de Cliente creado y confirmado para revisión por parte del área técnica.',
+        #                             })
+        # self.env['mail.message'].create({'message_type': "notification",
+        #                                  # "subtype": self.env.ref("mail.mt_comment").id,  # subject type
+        #                                  # 'subtype': 'mail.mt_comment',  # subject type
+        #                                  # 'subtype': 'mail.mt_comment',
+        #                                  'body': msg,
+        #                                  'subject': "Nuevo Formulario Cliente",
+        #                                  'partner_ids': [(4, 3, 1, 2)],
+        #                                  # partner to whom you send notification
+        #                                  })
+        notification_ids = [(0,0,
+                        # {
+                        #     'res_partner_id': self.env.user.partner_id.id,
+                        #     'notification_type': 'inbox'
+                        # },
+                        {
+                            'res_partner_id': self.env['res.partner'].search([('name', 'ilike', 'Catalina')], limit=1).id,
+                            'notification_type': 'inbox'
+                        }),
+                        (0,0,
+                        {
+                            'res_partner_id': self.env['res.partner'].search([('name', 'ilike', 'Izaquita')], limit=1).id,
+                            'notification_type': 'inbox'
+                        }
+                        )]
+        message_sent = self.message_post(body=msg, message_type="notification",
+                          subtype="mail.mt_comment",
+                          # author_id=self.env.user.partner_id.id,
+                          author_id=2,
+                          notification_ids=notification_ids)
+
         _logger.critical("Confirmar proyecto")
+        _logger.critical(self.env.user.partner_id)
+        _logger.critical(message_sent)
         return True
 
 
@@ -372,6 +423,9 @@ class FormularioValidacion(models.Model):
                     #readonly=True, states={'draft': [('readonly', False)]},)
 
     porcentaje_pasillos = fields.Float('Porcentaje de pasillos y muros adicionales', default=30.0)
+    total_m2_areas_cliente = fields.Float('Total M2 áreas cliente', default=1.0, digits=(16, 2), readonly=True,)
+    total_m2_areas_derivadas = fields.Float('Total M2 áreas derivadas', default=1.0, digits=(16, 2), readonly=True,)
+    total_m2_areas_diseno = fields.Float('Total M2 áreas diseño', default=1.0, digits=(16, 2), readonly=True,)
     total_m2_areas = fields.Float('Total M2 proyecto', default=1.0, digits=(16, 2), readonly=True,)
 
 
@@ -683,6 +737,9 @@ class FormularioValidacion(models.Model):
 
     def action_calcular_areas(self):
         _logger.critical("Calcular Áreas")
+        self.total_m2_areas_cliente = 0
+        self.total_m2_areas_derivadas = 0
+        self.total_m2_areas_diseno = 0
         self.total_m2_areas = 0
         '''
             TODO: 
@@ -715,7 +772,7 @@ class FormularioValidacion(models.Model):
                 _logger.critical(child_bom.product_id.name)
                 # str.find("soccer")
                 # TODO: Validar que la variante sea la misma del área seleccionada para traer el valor de M2 correcto.
-                if "Área" in child_bom.product_id.name:
+                if "Área" in child_bom.product_id.name or "Area" in child_bom.product_id.name:
                     # _logger.critical(child_bom.product_qty)
                     area_ciente.m2 = child_bom.product_qty
                     self.total_m2_areas += area_ciente.m2 * area_ciente.product_qty # child_bom.total_m2
@@ -732,7 +789,7 @@ class FormularioValidacion(models.Model):
                 # _logger.critical(child_bom.product_id.name)
                 # str.find("soccer")
                 # TODO: Validar que la variante sea la misma del área seleccionada para traer el valor de M2 correcto.
-                if "Área" in bom_line.product_id.name:
+                if "Área" in bom_line.product_id.name or "Area" in bom_line.product_id.name:
                     # _logger.critical(child_bom.product_qty)
                     area_derivada.m2 = bom_line.product_qty
                     self.total_m2_areas += area_derivada.m2 * area_derivada.product_qty # bom_line.total_m2
@@ -776,7 +833,7 @@ class FormularioValidacion(models.Model):
                 # _logger.critical(child_bom.product_id.name)
                 # str.find("soccer")
                 # TODO: Validar que la variante sea la misma del área seleccionada para traer el valor de M2 correcto.
-                if "Área" in bom_line.product_id.name:
+                if "Área" in bom_line.product_id.name or "Area" in bom_line.product_id.name:
                     # _logger.critical(child_bom.product_qty)
                     area_diseño.m2 = bom_line.product_qty
                     self.total_m2_areas += area_diseño.m2 * area_diseño.product_qty # bom_line.total_m2
@@ -788,10 +845,14 @@ class FormularioValidacion(models.Model):
         # TODO: Utilizar valor de pasillos... Eliminar calculos de suma total anteriores
         self.total_m2_areas = 0
         for line in self.areas_cliente:
+            self.total_m2_areas_cliente += line.total_m2
             self.total_m2_areas += line.total_m2
+
         for line in self.areas_derivadas:
+            self.total_m2_areas_derivadas += line.total_m2
             self.total_m2_areas += line.total_m2
         for line in self.areas_diseño:
+            self.total_m2_areas_diseno += line.total_m2
             self.total_m2_areas += line.total_m2
 
         if self.porcentaje_pasillos > 0:
@@ -807,6 +868,72 @@ class FormularioValidacion(models.Model):
 
             line.areas_derivadas = line.areas_derivadas
             line.areas_diseño = line.areas_diseño
+
+
+class MrpProduction(models.Model):
+    _inherit = 'mrp.production'
+
+    def action_cancel_all(self):
+        """ Cancels production order, unfinished stock moves and set procurement
+        orders in exception """
+        if not self.move_raw_ids:
+            self.state = 'cancel'
+            return True
+        self._action_cancel_all()
+        _logger.critical('action_cancel_all')
+        _logger.critical(self.move_raw_ids)
+        return True
+
+    def _action_cancel_all(self):
+        documents_by_production = {}
+        for production in self:
+            documents = defaultdict(list)
+            for move_raw_id in self.move_raw_ids.filtered(lambda m: m.state not in ('done', 'cancel')):
+                iterate_key = self._get_document_iterate_key(move_raw_id)
+                if iterate_key:
+                    document = self.env['stock.picking']._log_activity_get_documents(
+                        {move_raw_id: (move_raw_id.product_uom_qty, 0)}, iterate_key, 'UP')
+                    for key, value in document.items():
+                        documents[key] += [value]
+            if documents:
+                documents_by_production[production] = documents
+
+        self.workorder_ids.filtered(lambda x: x.state not in ['done', 'cancel']).action_cancel()
+        finish_moves = self.move_finished_ids.filtered(lambda x: x.state not in ('done', 'cancel'))
+        raw_moves = self.move_raw_ids.filtered(lambda x: x.state not in ('done', 'cancel'))
+        (finish_moves | raw_moves)._action_cancel()
+        picking_ids = self.picking_ids.filtered(lambda x: x.state not in ('done', 'cancel'))
+        picking_ids.action_cancel()
+
+        for production, documents in documents_by_production.items():
+            filtered_documents = {}
+            for (parent, responsible), rendering_context in documents.items():
+                if not parent or parent._name == 'stock.picking' and parent.state == 'cancel' or parent == production:
+                    continue
+                filtered_documents[(parent, responsible)] = rendering_context
+            production._log_manufacture_exception(filtered_documents, cancel=True)
+
+        # In case of a flexible BOM, we don't know from the state of the moves if the MO should
+        # remain in progress or done. Indeed, if all moves are done/cancel but the quantity produced
+        # is lower than expected, it might mean:
+        # - we have used all components but we still want to produce the quantity expected
+        # - we have used all components and we won't be able to produce the last units
+        #
+        # However, if the user clicks on 'Cancel', it is expected that the MO is either done or
+        # canceled. If the MO is still in progress at this point, it means that the move raws
+        # are either all done or a mix of done / canceled => the MO should be done.
+        self.filtered(lambda p: p.state not in ['done', 'cancel'] and p.bom_id.consumption == 'flexible').write(
+            {'state': 'done'})
+
+
+        production_to_cancel = self.env['mrp.production'].search([('origin', '=', self.name)])
+        _logger.critical('_____action_cancel_all OOOK')
+        _logger.critical(production_to_cancel)
+
+        for move in production_to_cancel:
+            move.action_cancel_all()
+        # _logger.critical(self.move_raw_ids)
+        return True
 # hereda de producto y añade campo para relación con Categoría
 # class ProductProduct(models.Model):
 #     _inherit = 'product.product'
