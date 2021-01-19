@@ -486,10 +486,10 @@ class FormularioValidacion(models.Model):
             BomLine = self.env['mrp.bom.line']
 
             # Create Category
-            existe_categoria = self.env['product.category'].search([('name', '=', 'Consultas y Requerimientos')])
+            existe_categoria = self.env['product.category'].search([('name', '=', 'Consultas y Requerimientos'.title())])
             if not existe_categoria:
                 categoria_consul_requer = self.env['product.category'].create({
-                    'name': 'Consultas y Requerimientos',
+                    'name': 'Consultas y Requerimientos'.title(),
                 })
             else:
                 categoria_consul_requer = existe_categoria
@@ -508,7 +508,7 @@ class FormularioValidacion(models.Model):
 
             # Create Template Product
             product_template = self.env['product.template'].create({
-                'name': self.nombre_tecnico,
+                'name': self.nombre_tecnico.title(),
                 'purchase_ok': False,
                 'type': 'product',
                 'categ_id': categoria_consul_requer.id,
@@ -635,8 +635,8 @@ class FormularioValidacion(models.Model):
         '''
         if self.state == 'done':
 
-            producto = self.env['product.product'].search([('name', '=', self.nombre_tecnico)], order='id asc')
-            product_template = self.env['product.template'].search([('name', '=', self.nombre_tecnico)], order='id asc')
+            producto = self.env['product.product'].search([('name', '=', self.nombre_tecnico.title())], order='id asc')
+            product_template = self.env['product.template'].search([('name', '=', self.nombre_tecnico.title())], order='id asc')
             bom_id = self.env['mrp.bom'].search([('product_tmpl_id', '=', product_template.id)], order='id asc')
             _logger.critical('--------PRODUCTO ENCONTRADO----------')
             _logger.critical(producto)
