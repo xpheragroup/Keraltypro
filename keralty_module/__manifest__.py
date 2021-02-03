@@ -19,7 +19,7 @@
     'version': '13.0.0.2',
 
     # any module necessary for this one to work correctly
-    'depends': ['base', 'product', 'stock', 'mrp', 'mail', 'web_kanban_gauge'],
+    'depends': ['base', 'product', 'stock', 'mrp', 'mail', 'web_kanban_gauge', 'purchase'],
 
     # always loaded
     'data': [

@@ -206,6 +206,7 @@ class FormularioCliente(models.Model):
 
         for linea_bom in self.areas_asociadas_sede:
             linea_bom.product_qty = 1
+            linea_bom.cantidad_final = 1
 
         warning = {
             'title': "Sede Seleccionada PRINT: {}".format(
@@ -226,57 +227,69 @@ class FormularioCliente(models.Model):
     def action_confirmar_proyecto(self):
         if self.state == 'confirmed':
             raise exceptions.UserError("El formulario ya ha sido marcado como confirmado.")
-
-        usuarios_notifica = self.env['res.users'].search([('id', '=', 2)])
-
         self.state = 'confirmed'
-        # msg = _("El usuario %s ha confirmado un nuevo Formulario Cliente. %s<br/>" % self.env.user.name, self.name)
-        # base_url = self.env['ir.config_parameter'].get_param('web.base.url')
-        # base_url += '/web#id=%d&view_type=form&model=%s' % (self.id, self._name)
         msg = ('Formulario Cliente \"{}\", confirmado por el usuario: \"{}\". \n\n'.format(self.nombre_proyecto, self.env.user.name)) #base_url))
-        # self.env['mail.activity'].create({'res_id': self.id,
-        #                                 'res_model_id': self.env['ir.model'].search([('model', '=', 'keralty_module.formulario.cliente')]).id,
-        #                                 'activity_type_id': 4,
-        #                                 # 'user_id': [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
-        #                                 # 'user_id': 2,
-        #                                 'user_id': usuarios_notifica.id,
-        #                                 'summary': 'Formulario de Cliente creado y confirmado para revisión por parte del área técnica.',
-        #                             })
-        # self.env['mail.message'].create({'message_type': "notification",
-        #                                  # "subtype": self.env.ref("mail.mt_comment").id,  # subject type
-        #                                  # 'subtype': 'mail.mt_comment',  # subject type
-        #                                  # 'subtype': 'mail.mt_comment',
-        #                                  'body': msg,
-        #                                  'subject': "Nuevo Formulario Cliente",
-        #                                  'partner_ids': [(4, 3, 1, 2)],
-        #                                  # partner to whom you send notification
-        #                                  })
-        notification_ids = [(0,0,
-                        # {
-                        #     'res_partner_id': self.env.user.partner_id.id,
-                        #     'notification_type': 'inbox'
-                        # },
-                        {
-                            'res_partner_id': self.env['res.partner'].search([('name', 'ilike', 'Catalina')], limit=1).id,
-                            'notification_type': 'inbox'
-                        }),
-                        (0,0,
-                        {
-                            'res_partner_id': self.env['res.partner'].search([('name', 'ilike', 'Izaquita')], limit=1).id,
-                            'notification_type': 'inbox'
-                        }
-                        )]
-        message_sent = self.message_post(body=msg, message_type="notification",
-                          subtype="mail.mt_comment",
-                          # author_id=self.env.user.partner_id.id,
-                          author_id=2,
-                          notification_ids=notification_ids)
+
+        # Buscar el grupo, buscar los usuarios del grupo, obtener el partner y guardarlo en notifications IDs
+        grupo_encontrado = self.env['res.groups'].search([('name', 'ilike', 'Usuarios Técnicos Keralty')], limit=1)
+
+        if grupo_encontrado:
+            _logger.critical(grupo_encontrado)
+            _logger.critical(grupo_encontrado.users)
+            notification_ids = []
+            for usuario_grupo in grupo_encontrado.users:
+                _logger.critical(usuario_grupo.partner_id)
+                notification_ids.append((0,0,
+                            {
+                                'res_partner_id': usuario_grupo.partner_id.id,
+                                'notification_type': 'inbox'
+                            }))
+            message_sent = self.message_post(body=msg, message_type="notification",
+                              subtype="mail.mt_comment",
+                              # author_id=self.env.user.partner_id.id,
+                              author_id=2,
+                              notification_ids=notification_ids)
+        else:
+            raise exceptions.UserError("No se encontró el grupo Usuarios Técnicos Keralty, se debe configurar para permitir la funcionalidad de alertas.")
+
 
         _logger.critical("Confirmar proyecto")
-        _logger.critical(self.env.user.partner_id)
-        _logger.critical(message_sent)
         return True
+# crear campo nombre_proyecto en ordenes de compra por proveedor
 
+class PurchaseOrder(models.Model):
+    """ Defines bills of material for a product or a product template """
+    _name = 'purchase.order'
+    _inherit = 'purchase.order'
+
+    nombre_proyecto = fields.Char(required=False, string="Proyecto Asociado", compute='_compute_nombre_proyecto',)
+
+    @api.depends('nombre_proyecto', 'origin')
+    def _compute_nombre_proyecto(self):
+        for record in self:
+            # _logger.critical(" COMPUTE TOTAL_M2 ")
+            _logger.critical("PurchaseOrder _compute_nombre_proyecto ")
+            _logger.critical("PurchaseOrder _compute_nombre_proyecto ")
+            _logger.critical("PurchaseOrder _compute_nombre_proyecto ")
+            _logger.critical("PurchaseOrder _compute_nombre_proyecto ")
+            if record.origin:
+                origin_split = record.origin.split(',')
+                _logger.critical(origin_split)
+                # for origen in origin_split:
+                referencia_origen = self.env['mrp.production'].search([('name', '=', origin_split[-1].strip())])
+                origen_producto = self.env['mrp.production'].search([('name', '=', referencia_origen.origin)])
+                _logger.critical(origen_producto.product_id.name)
+                if origen_producto:
+                    record.nombre_proyecto = origen_producto.product_id.name
+
+                    if origen_producto.origin:
+                        origen_producto_deep_level = self.env['mrp.production'].search([('name', '=', origen_producto.origin)])
+                        record.nombre_proyecto = origen_producto_deep_level.product_id.name
+                else:
+                    record.nombre_proyecto = 'N/A'
+
+            else:
+                record.nombre_proyecto = 'N/A'
 
 class MrpBom(models.Model):
     """ Defines bills of material for a product or a product template """
@@ -287,12 +300,34 @@ class MrpBom(models.Model):
     m2 = fields.Float('M2', default=1.0)
     total_m2 = fields.Float('Total', default=1.0, digits=(16, 2), readonly=True, group_operator="sum",
                             compute='_compute_total_m2',)
+    cantidad_final = fields.Float(
+        'Cantidad Final', default=1.0,
+        digits='Unit of Measure',)
 
     @api.depends('m2','total_m2')
     def _compute_total_m2(self):
         for record in self:
             # _logger.critical(" COMPUTE TOTAL_M2 ")
             record.total_m2 = record.product_qty * record.m2
+
+
+    @api.onchange('product_qty')
+    def _onchange_product_qty(self):
+        for record in self:
+            if record.product_qty > 0:
+                record.cantidad_final = record.product_qty
+            else:
+                raise exceptions.UserError(
+                    "La Cantidad Inicial ingresada no puede ser 0 o menor. Elimine el registro si no lo requiere.")
+
+
+    @api.onchange('cantidad_final')
+    def _onchange_cantidad_final(self):
+        for record in self:
+            if record.cantidad_final < record.product_qty:
+                raise exceptions.UserError(
+                    "La Cantidad Final ingresada no puede ser menor a la cantidad inicial.")
+
 
 class MrpBomLine(models.Model):
     _name = 'mrp.bom.line'
@@ -303,6 +338,9 @@ class MrpBomLine(models.Model):
     total_m2 = fields.Float('Total', default=1.0, digits=(16, 2), readonly=True, group_operator="sum",
                             compute='_compute_total_m2',)
     product_image = fields.Binary(string="Imágen Área", compute='_compute_product_image')
+    cantidad_final = fields.Float(
+        'Cantidad Final', default=1.0,
+        digits='Unit of Measure',)
 
 
     @api.depends('product_image')
@@ -342,6 +380,24 @@ class MrpBomLine(models.Model):
         for record in self:
             # _logger.critical(" COMPUTE TOTAL_M2 ")
             record.total_m2 = record.product_qty * record.m2
+
+    @api.onchange('product_qty')
+    def _onchange_product_qty(self):
+        for record in self:
+            if record.product_qty > 0:
+                record.cantidad_final = record.product_qty
+            else:
+                raise exceptions.UserError(
+                    "La Cantidad Inicial ingresada no puede ser 0 o menor. Elimine el registro si no lo requiere.")
+
+
+    @api.onchange('cantidad_final')
+    def _onchange_cantidad_final(self):
+        for record in self:
+            if record.cantidad_final < record.product_qty:
+                raise exceptions.UserError(
+                    "La Cantidad Final ingresada no puede ser menor a la cantidad inicial.")
+
 
 # TODO: Crear campo adicional en modelo bom_line para que me permita
 #  añadir la cantidad sin modificar nada de los productos asociados.
@@ -637,6 +693,9 @@ class FormularioValidacion(models.Model):
 
             producto = self.env['product.product'].search([('name', '=', self.nombre_tecnico.title())], order='id asc')
             product_template = self.env['product.template'].search([('name', '=', self.nombre_tecnico.title())], order='id asc')
+            if len(product_template) > 1:
+                raise exceptions.UserError("Ya se encuentran creadas las órdenes de producción iniciales para éste proyecto.")
+
             bom_id = self.env['mrp.bom'].search([('product_tmpl_id', '=', product_template.id)], order='id asc')
             _logger.critical('--------PRODUCTO ENCONTRADO----------')
             _logger.critical(producto)
@@ -729,11 +788,279 @@ class FormularioValidacion(models.Model):
 
         return True
 
+    def action_realizar_final(self):
+        total_boom_line_ids = None
 
+        _logger.critical("Realizar proyecto")
+        '''
+            TODO:
+                Traer todas las áreas diligenciadas del formulario de falicación
+                Copiar las áreas action_producir_finaly crearlas en el módulo Inventario como productos y asociarles los materiales de construcción:
+                Jerarquía:
+                    Se copian áreas
+                    Se copian materiales de construcción
 
+        '''
+        # if self.state != 'done':
 
+        Product = self.env['product.product']
+        BomLine = self.env['mrp.bom.line']
 
+        # Create Category
+        existe_categoria = self.env['product.category'].search(
+            [('name', '=', 'Consultas y Requerimientos'.title())])
+        if not existe_categoria:
+            categoria_consul_requer = self.env['product.category'].create({
+                'name': 'Consultas y Requerimientos'.title(),
+            })
+        else:
+            categoria_consul_requer = existe_categoria
 
+        # Referencia Interna: Existe, con timestamp y creamos. Iniciales del nombre del proyecto
+        iniciales_proyecto = [s[0] for s in (self.nombre_tecnico + ' Final').split()]
+        timestamp = datetime.timestamp(datetime.now())
+        iniciales_proyecto = ''.join(str(x) for x in iniciales_proyecto) + '-' + str(timestamp).split('.')[0]
+        # existe_ref_interna = self.env['product.category'].search([('name', '=', 'Consultas y Requerimientos')])
+
+        company_id = self.env.company
+
+        warehouse = self.env.ref('stock.warehouse0')
+        route_manufacture = warehouse.manufacture_pull_id.route_id.id
+        route_mto = warehouse.mto_pull_id.route_id.id
+
+        # Create Template Product
+        existe_producto = self.env['product.template'].search(
+            [('name', '=', self.nombre_tecnico.title() + ' Final')])
+        if not existe_producto:
+
+            product_template = self.env['product.template'].create({
+                'name': self.nombre_tecnico.title() + ' Final',
+                'purchase_ok': False,
+                'type': 'product',
+                'categ_id': categoria_consul_requer.id,
+                'default_code': iniciales_proyecto.upper(),
+                'company_id': company_id.id,
+                'route_ids': [(6, 0, [route_manufacture, route_mto])]
+
+            })
+        else:
+            raise exceptions.UserError("Ya se ha marcado como realizado. Revise la lista de productos de Inventario. Nombre del proyecto: " + self.nombre_tecnico.title() + ' Final')
+
+        # product = Product.create({
+        #             'name': self.nombre_tecnico,
+        #             # 'product_qty': area_derivada.cantidad_final,
+        #         })
+
+        # Create BOM
+        bom_created = self.env['mrp.bom'].create({
+            'product_tmpl_id': product_template.id,
+            'product_qty': 1.0,
+            'type': 'normal',
+            # 'bom_line_ids': [0, 0,
+            #                  total_boom_line_ids
+            #     ]
+            #     [
+            #     (0, 0, {
+            #         'product_id': product_A.id,
+            #         'product_qty': 1,
+            #         'bom_product_template_attribute_value_ids': [(4, sofa_red.id), (4, sofa_blue.id), (4, sofa_big.id)],
+            #     }),
+            #     (0, 0, {
+            #         'product_id': product_B.id,
+            #         'product_qty': 1,
+            #         'bom_product_template_attribute_value_ids': [(4, sofa_red.id), (4, sofa_blue.id)]
+            #     })
+            # ]
+        })
+
+        '''
+            DONE: Extraer el BomLine del producto del BOM de cada areas_derivadas y areas_diseño
+        '''
+        if total_boom_line_ids == None:
+            total_boom_line_ids = self.areas_cliente
+        else:
+            total_boom_line_ids += self.areas_cliente
+
+        _logger.critical("BOM: AREAS CLIENTE: ")
+        _logger.critical(self.areas_cliente)
+
+        for area_derivada in self.areas_derivadas:
+            # _logger.critical("BOM: AREAS DERIVADAS: ")
+            # _logger.critical(bom_created)
+            # _logger.critical(area_derivada)
+            # area_derivada.product_tmpl_id = product_template.id # Cambia el producto asociado, no sirve, se debe duplicar
+            # Create Product
+            _logger.critical("BOM: AREAS DERIVADAS: ")
+            _logger.critical(area_derivada)
+            _logger.critical(area_derivada.product_tmpl_id)
+            _logger.critical(area_derivada.product_id)
+
+            BomLine.create({
+                'bom_id': bom_created.id,
+                # 'product_id': area_derivada.product_id.id,
+                'product_id': area_derivada.product_tmpl_id.product_variant_id.id,
+                # 'product_tmpl_id': area_derivada.product_tmpl_id.id,
+                'product_qty': area_derivada.cantidad_final,
+            })
+            # if total_boom_line_ids == None:
+            #     total_boom_line_ids = area_derivada.bom_line_ids
+            # else:
+            #     total_boom_line_ids += area_derivada.bom_line_ids
+
+        for area_diseño in self.areas_diseño:
+            # area_diseño.product_tmpl_id = product_template.id
+            # Create Product
+            _logger.critical("BOM: AREAS DISEÑO: ")
+            _logger.critical(area_diseño)
+            _logger.critical(area_diseño.product_tmpl_id)
+            _logger.critical(area_diseño.product_id)
+
+            BomLine.create({
+                'bom_id': bom_created.id,
+                # 'product_id': area_diseño.product_id.id,
+                'product_id': area_diseño.product_tmpl_id.product_variant_id.id,
+                # 'product_tmpl_id': area_diseño.product_tmpl_id.id,
+                'product_qty': area_diseño.cantidad_final,
+            })
+
+            # if total_boom_line_ids == None:
+            #     total_boom_line_ids = area_diseño.bom_line_ids
+            # else:
+            #     total_boom_line_ids += area_diseño.bom_line_ids
+
+        for bom_without_attrs in total_boom_line_ids:
+            bom_without_attrs.bom_product_template_attribute_value_ids = None
+
+            BomLine.create({
+                'bom_id': bom_created.id,
+                'product_id': bom_without_attrs.product_id.id,
+                'product_qty': bom_without_attrs.cantidad_final,
+            })
+
+        _logger.critical('-------------------------------')
+        _logger.critical('--------TOTAL BOM IDs----------')
+        _logger.critical('-------------------------------')
+        _logger.critical(total_boom_line_ids)
+        _logger.critical('-------------------------------')
+
+        self.state = 'done'
+        # else:
+        #     raise exceptions.UserError("El proyecto ya ha sido marcado como realizado.")
+
+        return True
+
+    def action_producir_final(self):
+
+        '''
+            TODO: Crear orden de producción de las sublistas de materiales, que contenga cada producto creado, dejar en estado borrador cada orden de producción creada.
+            La validación de los materiales de construcción la realizará el área de construcción y dotación para luego ser marcada como realizada la orden.
+
+            PRE: Revisar estructura de objeto mrp.production, traer la información de la creación del objeto
+                 Buscar el product.product creado y asignarlo a la creación del objeto mrp.production
+            1. Crear el objeto mrp.production y asignar los productos que se crearán
+            2. Asignar el estado borrador o draft a cada una de las ordenes de producción creadas.
+        '''
+        # if self.state == 'done':
+
+        producto = self.env['product.product'].search([('name', '=', self.nombre_tecnico.title() + ' Final')],
+                                                      order='id asc')
+        product_template = self.env['product.template'].search(
+            [('name', '=', self.nombre_tecnico.title() + ' Final')], order='id asc')
+        if len(product_template) > 1:
+            raise exceptions.UserError("Ya se encuentran creadas las órdenes de producción finales para éste proyecto.")
+
+        bom_id = self.env['mrp.bom'].search([('product_tmpl_id', '=', product_template.id)], order='id asc')
+        _logger.critical('--------PRODUCTO ENCONTRADO----------')
+        _logger.critical(producto)
+        _logger.critical('--------BOM ID ENCONTRADO----------')
+        _logger.critical(bom_id)
+
+        # Obtener compañía:
+        company_id = self.env.company
+        if producto:
+            production_id = self.env['mrp.production'].create({
+                'product_id': producto.id,
+                'product_tmpl_id': producto.product_tmpl_id.id,
+                'product_qty': 1,
+                'product_uom_id': producto.uom_id.id,
+                'company_id': company_id.id,
+                'bom_id': bom_id.id,
+                # 'move_raw_ids': bom.bom_line_id
+            })
+
+            production_id.product_qty = bom_id.cantidad_final
+            production_id.product_uom_id = bom_id.product_uom_id.id
+            production_id.move_raw_ids = [(2, move.id) for move in
+                                          production_id.move_raw_ids.filtered(lambda x: not x.bom_line_id)]
+            # ////////////////////////////////
+            # for bom_line in bom_id:
+            #     # mo.move_raw_ids =
+            #     # ._generate_workorders(boms)
+            #     # move = production_id._generate_raw_move(bom_line, {'qty': bom_line.product_qty, 'parent_line': None})
+            #     production_id._generate_finished_moves()
+            #     production_id.move_raw_ids._adjust_procure_method()
+            #
+            #     # move = production_id._generate_workorders(bom_id)
+            #
+            #     _logger.critical('--------MOVE_RAW_IDs----------')
+            #     _logger.critical('------------------------------')
+            #     # _logger.critical(move)
+            #     _logger.critical('------------------------------')
+            #
+            #     production_id._adjust_procure_method()
+            #     move.action_confirm()
+            #     bom_line.unlink()
+            # mo.picking_type_id = bom_id.picking_type_id
+            _logger.critical('--------MOVE_RAW_IDs----------')
+            _logger.critical('------------------------------')
+            _logger.critical(production_id.move_raw_ids)
+            _logger.critical(production_id._onchange_move_raw())
+            _logger.critical(production_id._onchange_location())
+            # _logger.critical(production_id._get_moves_raw_values())
+            # _logger.critical(production_id.action_assign())
+            _logger.critical(production_id._get_moves_raw_values())
+            # _logger.critical(production_id.move_raw_ids._adjust_procure_method())
+            # _logger.critical(production_id.button_plan())
+            # _logger.critical(production_id._get_ready_to_produce_state())
+            _logger.critical(production_id._generate_finished_moves())
+            _logger.critical('------------------------------')
+
+            production_id._get_moves_raw_values()
+            production_id._generate_finished_moves()
+            production_id.move_raw_ids._adjust_procure_method()
+
+            # production_id.onchange_product_id()
+            # production_id._onchange_bom_id()
+
+            # with self.assertRaises(exceptions.UserError):
+            production_id.action_confirm()
+
+            all_purchase_orders = self.env['purchase.order'].search([('state', '=', 'draft')], order='id asc')
+
+            _logger.critical('--------ORDEN COMPRA ----------')
+            _logger.critical('----------------------------------')
+            _logger.critical(all_purchase_orders)
+            _logger.critical('----------------------------------')
+
+            for order in all_purchase_orders:
+                order.button_confirm()
+
+            _logger.critical('--------ORDEN PRODUCCIÓN----------')
+            _logger.critical('----------------------------------')
+            _logger.critical(production_id)
+            _logger.critical('----------------------------------')
+
+            _logger.critical('--------ORDEN COMPRA ----------')
+            _logger.critical('----------------------------------')
+            _logger.critical(all_purchase_orders)
+            _logger.critical('----------------------------------')
+        else:
+            raise exceptions.UserError("El proyecto no se ha encontrado o el nombre ha cambiado.")
+        # else:
+        #     raise exceptions.UserError(
+        #         "El proyecto sebe estar marcado como realizado para poder crear la orden de fabricación.")
+
+        return True
 
     def action_calcular_areas(self):
         _logger.critical("Calcular Áreas")

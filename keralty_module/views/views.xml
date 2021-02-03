@@ -282,6 +282,7 @@
 <!--                                                <field name="product_id.image_128" string="Imágen" widget="image"/>-->
                                                 <field name="product_id" string="Área"/>
                                                 <field name="product_qty" />
+                                                <field width="120px" name="cantidad_final" />
                                             </tree>
                                         </field>
                                     </group>
@@ -339,9 +340,13 @@
                 <header>
                     <button name="action_calcular_areas" string="Calcular Áreas" type="object" class="oe_highlight"
                         confirm="Realizando el cálculo de áreas." groups="base.group_user" />
-                    <button name="action_realizar" string="Marcar Realizado" type="object" class="oe_highlight"
+                    <button name="action_realizar" string="Marcar Realizado Inicial" type="object" class="oe_highlight"
                         confirm="Esta opción es irreversible y deshabilitará la edición del formulario. ¿Desea continuar?" groups="base.group_user" />
-                    <button name="action_producir" string="Generar Órden de Fabricación" type="object" class="oe_highlight"
+                    <button name="action_realizar_final" string="Marcar Realizado Final" type="object" class="oe_highlight"
+                        confirm="Esta opción es irreversible y deshabilitará la edición del formulario. ¿Desea continuar?" groups="base.group_user" />
+                    <button name="action_producir" string="Generar Órdenes Iniciales" type="object" class="oe_highlight"
+                        confirm="Esta opción es irreversible y deshabilitará la edición del formulario. ¿Desea continuar?" groups="base.group_user" />
+                    <button name="action_producir_final" string="Generar Órdenes Finales" type="object" class="oe_highlight"
                         confirm="Esta opción es irreversible y deshabilitará la edición del formulario. ¿Desea continuar?" groups="base.group_user" />
                     <field name="state" widget="statusbar" statusbar_visible="draft,confirmed,done,cancel"/>
                 </header>
@@ -369,6 +374,7 @@
                                         <field name="company_id" invisible="1"/>
                                         <field name="product_id" string="Área"/>
                                         <field name="product_qty" />
+                                        <field name="cantidad_final" />
                                         <field name="m2" />
                                         <field name="total_m2" sum="Total" />
                                     </tree>
@@ -382,6 +388,7 @@
                                         <field name="company_id" invisible="1"/>
                                         <field name="product_tmpl_id" string="Área"/>
                                         <field name="product_qty" />
+                                        <field name="cantidad_final" />
                                         <field name="m2" />
                                         <field name="total_m2" sum="Total" />
                                     </tree>
@@ -395,6 +402,7 @@
                                         <field name="company_id" invisible="1"/>
                                         <field name="product_tmpl_id" string="Área"/>
                                         <field name="product_qty" />
+                                        <field name="cantidad_final" />
                                         <field name="m2" />
                                         <field name="total_m2" sum="Total" />
                                     </tree>
@@ -432,6 +440,17 @@
                     confirm="Esta opción es irreversible y marcará todas las órdenes de producción como canceladas/realizadas. ¿Desea continuar?"
                     attrs="{'invisible': ['|', '|', '|', ('id', '=', False), ('is_locked', '=', False), ('state', 'in', ('done','cancel')), ('confirm_cancel', '=', True)]}"/>
             </xpath>
+        </field>
+    </record>
+    <!-- Modificación a la vista purchase_order_tree -->
+    <record id="purchase_order_tree_inherit_field_proyecto" model="ir.ui.view">
+        <field name="name">purchase.order.view.inherited.field.proyecto</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_order_tree" />
+        <field name="arch" type="xml">
+          <xpath expr="//field[@name='date_order']" position="after">
+            <field name="nombre_proyecto"/>
+          </xpath>
         </field>
     </record>
 <!--
