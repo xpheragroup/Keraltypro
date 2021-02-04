@@ -19,13 +19,14 @@
     'version': '13.0.0.2',
 
     # any module necessary for this one to work correctly
-    'depends': ['base', 'product', 'stock', 'mrp', 'mail', 'web_kanban_gauge', 'purchase'],
+    'depends': ['base', 'product', 'stock', 'mrp', 'mail', 'web_kanban_gauge', 'purchase', 'web'],
 
     # always loaded
     'data': [
         'security/ir.model.access.csv',
         'views/views.xml',
         'views/templates.xml',
+        'views/assets.xml',
     ],
     'installable': True,
     'application': True,
