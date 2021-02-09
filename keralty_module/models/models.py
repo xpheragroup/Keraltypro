@@ -29,11 +29,12 @@ class FormularioCliente(models.Model):
                     help="Selección de Empresas asociadas a la solicitud.",
                     # domain="[('user_ids', '=', False)]",
                     # domain="[['attribute_id.name','ilike','Empresa']]",
-                    domain="['&',('company_type','=', 'company'), ('is_company', '=', True), ('supplier_rank', '=', '0')]",
+                    domain="['&',('company_type','=', 'company'), ('is_company', '=', True), ('supplier_rank', '=', '0'), ('name', '!=', 'Colombia'), ('name', '!=', 'Venezuela')]",
                     check_company=True,
                     required=True,
                     readonly=True, states={'draft': [('readonly', False)]},)
     producto_seleccionado = fields.Many2many(string="Selección de Producto(s)",
+                    # comodel_name='product.attribute.value',
                     comodel_name='product.attribute.value',
                     relation="product_cliente_producto",
                     help="Selección de Productos asociados a la solicitud.",
@@ -74,8 +75,8 @@ class FormularioCliente(models.Model):
     pais = fields.Many2one(required=True, string="País", comodel_name='res.country',help="País seleccionado.", readonly=True, states={'draft': [('readonly', False)]},)
     departamento = fields.Many2one('res.country.state', 'Departamento / Estado', domain="[('country_id', '=', pais)]", required=True, readonly=True, states={'draft': [('readonly', False)]},)
     ciudad = fields.Char(required=True, string="Ciudad / Municipio", readonly=True, states={'draft': [('readonly', False)]},)
-    poligono = fields.Char(required=True, string="Polígonos de búsqueda", readonly=True, states={'draft': [('readonly', False)]},)
-    especificaciones_adicionales = fields.Char(required=True, string="Especificaciones adicionales", readonly=True, states={'draft': [('readonly', False)]},)
+    poligono = fields.Char(required=False, string="Polígonos de búsqueda", readonly=True, states={'draft': [('readonly', False)]},)
+    especificaciones_adicionales = fields.Char(required=False, string="Especificaciones adicionales", readonly=True, states={'draft': [('readonly', False)]},)
 
 
     # Ocupación centro médico
@@ -85,7 +86,7 @@ class FormularioCliente(models.Model):
                                     readonly=True, states={'draft': [('readonly', False)]},)
     terceros = fields.Float(string="Terceros", required=False, help="Terceros",
                     readonly=True, states={'draft': [('readonly', False)]},)
-    especificaciones_adicionales = fields.Char(required=True, string="Especificaciones adicionales",)
+    especificaciones_adicionales = fields.Char(required=False, string="Especificaciones adicionales",)
 
     # usuarios
     # por género
@@ -163,8 +164,17 @@ class FormularioCliente(models.Model):
         for sede_product_template in self.sede_seleccionada:
             for area in sede_product_template.bom_ids:
                 for linea_bom in area.bom_line_ids:
-                    #for producto_seleccionado in self.producto_seleccionado:
-                        #if producto_seleccionado.name in linea_bom.display_name:
+                    # _logger.warning('LINEA BOOOOOM!!')
+                    # _logger.warning(linea_bom)
+                    for producto_seleccionado in self.producto_seleccionado:
+                        # if producto_seleccionado.name in linea_bom.display_name:\
+                        if producto_seleccionado.name in linea_bom.bom_product_template_attribute_value_ids.name:
+
+                            # _logger.warning('LINEA BOOOOOM!! producto seleccionado Y BOM PRODUCT TEMPLATE ATTRIBUTE VALUE IDS')
+                            # _logger.warning(producto_seleccionado)
+                            # _logger.warning(linea_bom.bom_product_template_attribute_value_ids)
+                            # _logger.warning(linea_bom)
+
                             if "Cliente" in linea_bom.product_id.categ_id.name:
                                 if total_bom_line_ids:
                                     total_bom_line_ids += linea_bom
