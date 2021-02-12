@@ -1,6 +1,13 @@
 .invoice-residual-view {
 }
 
+.invoice-residual-view .o_td_label{
+    visibility: hidden !important;
+    display: none;
+    width: 0% !important;
+    min-width: 0px;
+}
+
 .icono-usuarios{
 
 }

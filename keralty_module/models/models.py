@@ -163,31 +163,36 @@ class FormularioCliente(models.Model):
 
         for sede_product_template in self.sede_seleccionada:
             for area in sede_product_template.bom_ids:
-                for linea_bom in area.bom_line_ids:
-                    # _logger.warning('LINEA BOOOOOM!!')
-                    # _logger.warning(linea_bom)
-                    for producto_seleccionado in self.producto_seleccionado:
-                        # if producto_seleccionado.name in linea_bom.display_name:\
-                        if producto_seleccionado.name in linea_bom.bom_product_template_attribute_value_ids.name:
+                # if len(area.bom_line_ids) == 1:
+                    for linea_bom in area.bom_line_ids:
+                        # _logger.warning('LINEA BOOOOOM!!')
+                        # _logger.warning(linea_bom)
+                        for producto_seleccionado in self.producto_seleccionado:
+                            # if producto_seleccionado.name in linea_bom.display_name:\
+                            if linea_bom.bom_product_template_attribute_value_ids:
+                                if producto_seleccionado.name in linea_bom.bom_product_template_attribute_value_ids.name:
 
-                            # _logger.warning('LINEA BOOOOOM!! producto seleccionado Y BOM PRODUCT TEMPLATE ATTRIBUTE VALUE IDS')
-                            # _logger.warning(producto_seleccionado)
-                            # _logger.warning(linea_bom.bom_product_template_attribute_value_ids)
-                            # _logger.warning(linea_bom)
+                                    # _logger.warning('LINEA BOOOOOM!! producto seleccionado Y BOM PRODUCT TEMPLATE ATTRIBUTE VALUE IDS')
+                                    # _logger.warning(producto_seleccionado)
+                                    # _logger.warning(linea_bom.bom_product_template_attribute_value_ids)
+                                    # _logger.warning(linea_bom)
 
-                            if "Cliente" in linea_bom.product_id.categ_id.name:
-                                if total_bom_line_ids:
-                                    total_bom_line_ids += linea_bom
-                                else:
-                                    total_bom_line_ids = linea_bom
-                area.bom_line_ids = None
-                area.bom_line_ids = total_bom_line_ids
+                                    if "Cliente" in linea_bom.product_id.categ_id.name:
+                                        if total_bom_line_ids:
+                                            total_bom_line_ids += linea_bom
+                                        else:
+                                            total_bom_line_ids = linea_bom
+                    area.bom_line_ids = None
+                    area.bom_line_ids = total_bom_line_ids
 
-                self.areas_asociadas_sede |= area.bom_line_ids
+                    self.areas_asociadas_sede |= area.bom_line_ids
 
-                if not total_bom_line_ids:
-                    raise exceptions.UserError("No se encuentra ninguna asociación entre el Producto y la Sede seleccionados.")
-                # self.areas_asociadas_sede |= bom_created
+                    if not total_bom_line_ids:
+                        raise exceptions.UserError("No se encuentra ninguna asociación entre el Producto y la Sede seleccionados.")
+                    # self.areas_asociadas_sede |= bom_created
+                # else:
+                #     raise exceptions.UserError("La Sede seleccionada \"" + area.display_name + "\" debe tener (1) una lista de materiales. Actual: " + str(len(area.bom_line_ids)))
+
 
 
         for linea_bom in self.areas_asociadas_sede:
@@ -289,6 +294,7 @@ class MrpBom(models.Model):
     cantidad_final = fields.Float(
         'Cantidad Final', default=1.0,
         digits='Unit of Measure',)
+    product_name_only = fields.Char(string="Nombre", compute='_compute_product_name_only')
 
     @api.depends('m2','total_m2')
     def _compute_total_m2(self):
@@ -315,6 +321,15 @@ class MrpBom(models.Model):
                     "La Cantidad Final ingresada no puede ser menor a la cantidad inicial.")
 
 
+    @api.depends('product_name_only')
+    def _compute_product_name_only(self):
+        for record in self:
+            if record.product_id:
+                record.product_name_only = record.product_id.name
+            if record.product_tmpl_id:
+                record.product_name_only = record.product_tmpl_id.name
+
+
 class MrpBomLine(models.Model):
     _name = 'mrp.bom.line'
     _inherit = 'mrp.bom.line'
@@ -327,6 +342,16 @@ class MrpBomLine(models.Model):
     cantidad_final = fields.Float(
         'Cantidad Final', default=1.0,
         digits='Unit of Measure',)
+
+
+    product_name_only = fields.Char(string="Nombre", compute='_compute_product_name_only')
+    @api.depends('product_name_only')
+    def _compute_product_name_only(self):
+        for record in self:
+            if record.product_id:
+                record.product_name_only = record.product_id.name
+
+
 
 
     @api.depends('product_image')
@@ -494,9 +519,47 @@ class FormularioValidacion(models.Model):
     def _onchange_formulario_cliente(self):
         res = {}
         objetoBusqueda = None
-        _logger.critical(self.formulario_cliente.areas_asociadas_sede)
+        # _logger.critical(self.formulario_cliente.areas_asociadas_sede)
         if self.formulario_cliente.areas_asociadas_sede:
             self.areas_cliente = self.formulario_cliente.areas_asociadas_sede
+
+        # Cargar Áreas Derivadas automáticamente
+
+        self.areas_derivadas = None
+        self.areas_diseño = None
+        total_bom_line_ids_derivada = None
+        total_bom_line_ids_disenio = None
+
+        for sede_product_template in self.formulario_cliente.sede_seleccionada:
+            for area in sede_product_template.bom_ids:
+                for linea_bom in area.bom_line_ids:
+                    # _logger.warning('LINEA BOOOOOM!!')
+                    # _logger.warning(linea_bom)
+                    for producto_seleccionado in self.formulario_cliente.producto_seleccionado:
+                        # if producto_seleccionado.name in linea_bom.display_name:\
+                        if linea_bom.bom_product_template_attribute_value_ids:
+                            if producto_seleccionado.name in linea_bom.bom_product_template_attribute_value_ids.name:
+
+                                if "Derivada" in linea_bom.child_bom_id.product_tmpl_id.categ_id.name:
+                                    if total_bom_line_ids_derivada:
+                                        total_bom_line_ids_derivada += linea_bom.child_bom_id
+                                    else:
+                                        total_bom_line_ids_derivada = linea_bom.child_bom_id
+
+                                if "Diseño" in linea_bom.child_bom_id.product_tmpl_id.categ_id.name:
+                                    if total_bom_line_ids_disenio:
+                                        total_bom_line_ids_disenio += linea_bom.child_bom_id
+                                    else:
+                                        total_bom_line_ids_disenio = linea_bom.child_bom_id
+
+                self.areas_derivadas = None
+                self.areas_derivadas |= total_bom_line_ids_derivada
+
+                self.areas_diseño = None
+                self.areas_diseño |= total_bom_line_ids_disenio
+
+
+
 
         warning = {
             'title': "Sede Seleccionada PRINT: {}".format(
@@ -1123,28 +1186,35 @@ class FormularioValidacion(models.Model):
                 calculo_formula_final = encuentra_formula_area.formula_aritmetica
 
                 for variable in find_vars_in_formula:
-                    if encuentra_formula_area.variable_derivada == 'cantidad':
-                        for area_cliente in self.areas_cliente:
-                            if encuentra_formula_area.area_criterio_independiente:
-                                if variable in area_cliente.product_id.name:
-                                    calculo_formula = calculo_formula.replace(variable, str(area_cliente.product_qty))
-                                    calculo_formula_final = calculo_formula_final.replace(variable, str(area_cliente.cantidad_final))
-                            if encuentra_formula_area.campo_criterio_independiente:
-                                variable_texto = 'self.formulario_cliente.' + variable
-                                calculo_formula = calculo_formula.replace(variable, str(eval(variable_texto)))
-                                calculo_formula_final = calculo_formula_final.replace(variable, str(eval(variable_texto)))
-                                _logger.critical(variable_texto)
-                                _logger.critical(calculo_formula)
+                    for area_cliente in self.areas_cliente:
+                        if encuentra_formula_area.area_criterio_independiente:
+                            if variable in area_cliente.product_id.name:
+                                calculo_formula = calculo_formula.replace(variable, str(area_cliente.product_qty))
+                                calculo_formula_final = calculo_formula_final.replace(variable, str(area_cliente.cantidad_final))
+                        if encuentra_formula_area.campo_criterio_independiente:
+                            variable_texto = 'self.formulario_cliente.' + variable
+                            calculo_formula = calculo_formula.replace(variable, str(eval(variable_texto)))
+                            calculo_formula_final = calculo_formula_final.replace(variable, str(eval(variable_texto)))
+                            _logger.critical(variable_texto)
+                            _logger.critical(calculo_formula)
 
                 for variable in find_vars_in_formula:
                     if variable in calculo_formula:
                         raise exceptions.UserError("Una o más áreas dependientes no se han encontrado, por favor verifique que el área dependiente se encuentre en el listado de Áreas Cliente. Área: (" + variable + ")")
 
-                calculo_formula = calculo_formula.replace('"', '')
-                calculo_formula_final = calculo_formula_final.replace('"', '')
-                _logger.critical(eval(calculo_formula))  # 1.4
-                area_derivada.product_qty = eval(calculo_formula)
-                area_derivada.cantidad_final = eval(calculo_formula_final)
+                if encuentra_formula_area.variable_derivada == 'cantidad':
+                    calculo_formula = calculo_formula.replace('"', '')
+                    calculo_formula_final = calculo_formula_final.replace('"', '')
+                    _logger.critical(eval(calculo_formula))  # 1.4
+                    area_derivada.product_qty = eval(calculo_formula)
+                    area_derivada.cantidad_final = eval(calculo_formula_final)
+
+                if encuentra_formula_area.variable_derivada == 'area':
+                    calculo_formula = calculo_formula.replace('"', '')
+                    calculo_formula_final = calculo_formula_final.replace('"', '')
+                    _logger.critical(eval(calculo_formula))  # 1.4
+                    area_derivada.m2 = eval(calculo_formula)
+                    area_derivada.total_m2 = area_derivada.m2 * area_derivada.product_qty
 
 
 

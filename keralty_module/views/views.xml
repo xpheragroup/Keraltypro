@@ -232,55 +232,65 @@
                         <field name="especificaciones_adicionales" />
                     </group>
                     <group string="Ocupación">
-                        <span class="oe_inline">A continuación encontrará la información de las áreas sugeridas para el centro médico. Teniendo en cuenta las proyecciones de crecimiento, en la columna "Valor inicial", se debe ingresar la ocupación esperada para el momento de apertura del centro médico. En la columna "Valor final", se debe ingresar la ocupación total esperada para el centro médico.</span>
+                        <span style="width: 100%;">Por favor diligencie la distribución de ocupación para cada una de las categorías.</span>
+                        <br/>
+                        <br/>
                         <br/>
                         <h3>Usuarios:</h3>
                         <br/>
-                        <span class="oe_inline">Distribución por género</span>
+                        <span class="oe_inline"><b>Distribución por género</b></span>
                         <br/>
-                        <field name="usuarios_femenino" />
-                        <field name="usuarios_masculino" />
-                        <span class="oe_inline">Distribución por grupo etario</span>
+                        <field style="font-weight: normal;" name="usuarios_femenino" />
+                        <field style="font-weight: normal;" name="usuarios_masculino" />
+                        <span class="oe_inline"><b>Distribución por grupo etario</b></span>
                         <br/>
-                        <field name="usuarios_menores_10_anos" />
-                        <field name="usuarios_entre_10_19_anos" />
-                        <field name="usuarios_entre_20_59_anos" />
-                        <field name="usuarios_mayores_59_anos" />
+                        <field style="font-weight: normal;" name="usuarios_menores_10_anos" />
+                        <field style="font-weight: normal;" name="usuarios_entre_10_19_anos" />
+                        <field style="font-weight: normal;" name="usuarios_entre_20_59_anos" />
+                        <field style="font-weight: normal;" name="usuarios_mayores_59_anos" />
+                        <br/>
+                        <br/>
                         <h3>Empleados: </h3>
                         <br/>
-                        <span class="oe_inline">Distribución por género</span>
+                        <span class="oe_inline"><b>Distribución por género</b></span>
                         <br/>
-                        <field name="empleados_femenino" />
-                        <field name="empleados_masculino" />
-                        <span class="oe_inline">Distribución por tipo de labor</span>
+                        <field style="font-weight: normal; !important" name="empleados_femenino" />
+                        <field style="font-weight: normal;" name="empleados_masculino" />
+                        <span class="oe_inline"><b>Distribución por tipo de labor</b></span>
                         <br/>
-                        <field name="personal_administrativo" />
-                        <field name="personal_asistencial" />
+                        <field style="font-weight: normal;" name="personal_administrativo" />
+                        <field style="font-weight: normal;" name="personal_asistencial" />
+                        <br/>
+                        <br/>
                         <h3>Terceros: </h3>
                         <br/>
-                        <span class="oe_inline">Distribución por género</span>
+                        <span class="oe_inline"><b>Distribución por género</b></span>
                         <br/>
-                        <field name="terceros_femenino" />
-                        <field name="terceros_masculino" />
-                        <span class="oe_inline">Distribución por servicios a subcontratar</span>
+                        <field style="font-weight: normal; !important" name="terceros_femenino" />
+                        <field style="font-weight: normal; !important" name="terceros_masculino" />
+                        <span class="oe_inline"><b>Distribución por servicios a subcontratar</b></span>
                         <br/>
-                        <field name="servicios_generales" />
-                        <field name="seguridad" />
+                        <field style="font-weight: normal; !important" name="servicios_generales" />
+                        <field style="font-weight: normal; !important" name="seguridad" />
 
                     </group>
                     <notebook>
                         <!--<templates>-->
                             <!--<t t-foreach="empresa_seleccionada" t-as="empresa">-->
                                 <page class="oe_highlight" string="Áreas Cliente" name  ="Áreas Cliente">
+                                    <span style="width: 100%;"><b>Selección de áreas</b></span>
+                                    <br />
+                                    <span style="width: 100%;">A continuación encontrará la información de las áreas sugeridas para la iniciativa solicitada. En caso de contar con proyecciones de crecimiento de infraestructura, ingrese en “Valor Inicial” la cantidad de espacios por cada área con la que iniciará la operación del proyecto, y en “Valor Final”, la cantidad total proyectada en cada caso. Si no se proyectará crecimiento, ingrese la cantidad de espacios a solicitar únicamente en la columna “Valor Inicial”</span>
                                     <group class="invoice-residual-view">
                                         <!--field name="move_raw_ids"/-->
-                                        <field name="areas_asociadas_sede" widget="many2many">
+                                        <field string="" name="areas_asociadas_sede" widget="many2many">
                                             <tree string="Áreas" editable="top" create="true" edit="false">
                                                 <field name="company_id" invisible="1"/>
                                                 <field width="60px"  name="product_image" options="{'size':[0,90]}" widget="image"/>
 <!--                                                <field name="attachments_count" string="Cantidad de Archivos"/>-->
 <!--                                                <field name="product_id.image_128" string="Imágen" widget="image"/>-->
-                                                <field width="300px"  name="product_id" string="Área"/>
+                                                <field width="300px"  name="product_id" string="Área"  invisible="1"/>
+                                                <field width="300px"  name="product_name_only" string="Área"/>
                                                 <field width="90px" name="product_qty" />
                                                 <field width="120px" name="cantidad_final" />
                                             </tree>
@@ -372,7 +382,8 @@
                                 <field name="areas_cliente" widget="many2many">
                                     <tree string="Áreas" editable="top">
                                         <field name="company_id" invisible="1"/>
-                                        <field name="product_id" string="Área"/>
+                                        <field width="300px"  name="product_id" string="Área"  invisible="1"/>
+                                        <field width="300px"  name="product_name_only" string="Área"/>
                                         <field name="product_qty" />
                                         <field name="cantidad_final" />
                                         <field name="m2" />
@@ -386,7 +397,8 @@
                                 <field name="areas_derivadas" widget="many2many">
                                     <tree string="Áreas" editable="top">
                                         <field name="company_id" invisible="1"/>
-                                        <field name="product_tmpl_id" string="Área"/>
+                                        <field width="300px"  name="product_tmpl_id" string="Área"  invisible="1"/>
+                                        <field width="300px"  name="product_name_only" string="Área"/>
                                         <field name="product_qty" />
                                         <field name="cantidad_final" />
                                         <field name="m2" />
@@ -400,7 +412,8 @@
                                 <field name="areas_diseño" widget="many2many">
                                     <tree string="Áreas" editable="top">
                                         <field name="company_id" invisible="1"/>
-                                        <field name="product_tmpl_id" string="Área"/>
+                                        <field width="300px"  name="product_tmpl_id" string="Área"  invisible="1"/>
+                                        <field width="300px"  name="product_name_only" string="Área"/>
                                         <field name="product_qty" />
                                         <field name="cantidad_final" />
                                         <field name="m2" />
@@ -410,8 +423,8 @@
                             </group>
                         </page>
                         <page class="oe_highlight" string="Total" name="Total">
-                            <group class="invoice-residual-view">
-                                <group class="invoice-residual-view">
+                            <group class="">
+                                <group class="">
                                     <field name="porcentaje_pasillos" />
                                     <field name="total_m2_areas_cliente" />
                                     <field name="total_m2_areas_derivadas" />
@@ -442,7 +455,7 @@
             </xpath>
         </field>
     </record>
-    <!-- Modificación a la vista purchase_order_tree -->
+    <!-- Modificación a la vista purchase_order_tree solicitud de cotización -->
     <record id="purchase_order_tree_inherit_field_proyecto" model="ir.ui.view">
         <field name="name">purchase.order.view.inherited.field.proyecto</field>
         <field name="model">purchase.order</field>
@@ -451,6 +464,19 @@
           <xpath expr="//field[@name='date_order']" position="after">
             <field name="nombre_proyecto"/>
           </xpath>
+          <xpath expr="//field[@name='origin']" position="replace"/>
+        </field>
+    </record>
+    <!-- Modificación a la vista purchase_order_view_tree orden de compra -->
+    <record id="purchase_order_tree_inherit_field_proyecto_asociado" model="ir.ui.view">
+        <field name="name">purchase.order.view.inherited.field.proyecto_asociado</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_order_view_tree" />
+        <field name="arch" type="xml">
+          <xpath expr="//field[@name='date_approve']" position="after">
+            <field name="nombre_proyecto"/>
+          </xpath>
+          <xpath expr="//field[@name='origin']" position="replace"/>
         </field>
     </record>
 <!--

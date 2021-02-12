@@ -1,13 +1,11 @@
 <odoo>
     <data>
-
-<!--
     <template id="keralty_module_assets_backend" name="keralty_module assets" inherit_id="web.assets_backend">
         <xpath expr="." position="inside">
             <link rel="stylesheet" href="/keralty_module/static/src/css/styles.css"/>
-            <script type="text/javascript" src="/account/static/src/js/reconciliation/reconciliation_action.js"></script>
+<!--            <script type="text/javascript" src="/account/static/src/js/reconciliation/reconciliation_action.js"></script>-->
         </xpath>
-    </template>-->
+    </template>
 <!--
         <template id="listing">
           <ul>
