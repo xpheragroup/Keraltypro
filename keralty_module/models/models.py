@@ -1158,100 +1158,57 @@ class FormularioValidacion(models.Model):
                     # area_ciente.total_m2 = area_ciente.product_qty * area_ciente.m2
 
         for area_derivada in self.areas_derivadas:
-            # _logger.warning(area_derivada.display_name)
             for bom_line in area_derivada.bom_line_ids:
-                # _logger.critical(bom_line.product_id.name)
-                # for child_bom in bom_line.child_line_ids:
-                # _logger.critical(child_bom.product_id.name)
-                # str.find("soccer")
                 # TODO: Validar que la variante sea la misma del área seleccionada para traer el valor de M2 correcto.
                 if "Área" in bom_line.product_id.name or "Area" in bom_line.product_id.name:
-                    # _logger.critical(child_bom.product_qty)
                     area_derivada.m2 = bom_line.product_qty
-                    self.total_m2_areas += area_derivada.m2 * area_derivada.product_qty # bom_line.total_m2
-                    # _logger.critical("ÁREAS DERIVADAS -> TOTAL_M2: " + str(self.total_m2_areas))
+                    self.total_m2_areas += area_derivada.m2 * area_derivada.product_qty
 
             # Consultar si el área derivada tiene formulación creada
-            encuentra_formula_area = self.env['keralty_module.calculos'].search([('area_derivada.name', '=', area_derivada.product_tmpl_id.name)], order='id asc')
-            _logger.critical(encuentra_formula_area)
-            _logger.critical(encuentra_formula_area.formula_aritmetica)
+            encuentra_formulas_area = self.env['keralty_module.calculos'].search([('area_derivada.name', '=', area_derivada.product_tmpl_id.name)], order='id asc')
 
+            if len(encuentra_formulas_area) > 0:
+                for formula_area_encontrada in encuentra_formulas_area:
+                    find_vars_in_formula = re.findall('"(.+?)"', formula_area_encontrada.formula_aritmetica)
+                    # _logger.critical(find_vars_in_formula)
+                    calculo_formula = formula_area_encontrada.formula_aritmetica
+                    calculo_formula_final = formula_area_encontrada.formula_aritmetica
 
-            if encuentra_formula_area.formula_aritmetica:
-                # formula_splitted = encuentra_formula_area.formula_aritmetica.split('"')
-                # find_vars_in_formula = [m.start() for m in re.finditer('"', encuentra_formula_area.formula_aritmetica)]
-                find_vars_in_formula = re.findall('"(.+?)"', encuentra_formula_area.formula_aritmetica)
-                _logger.critical(find_vars_in_formula)
-                calculo_formula = encuentra_formula_area.formula_aritmetica
-                calculo_formula_final = encuentra_formula_area.formula_aritmetica
+                    for variable in find_vars_in_formula:
+                        for area_cliente in self.areas_cliente:
+                            if formula_area_encontrada.area_criterio_independiente:
+                                if variable in area_cliente.product_id.name:
+                                    calculo_formula = calculo_formula.replace(variable, str(area_cliente.product_qty))
+                                    calculo_formula_final = calculo_formula_final.replace(variable, str(area_cliente.cantidad_final))
+                            if formula_area_encontrada.campo_criterio_independiente:
+                                variable_texto = 'self.formulario_cliente.' + variable
+                                calculo_formula = calculo_formula.replace(variable, str(eval(variable_texto)))
+                                calculo_formula_final = calculo_formula_final.replace(variable, str(eval(variable_texto)))
+                                _logger.critical(variable_texto)
+                                _logger.critical(calculo_formula)
 
-                for variable in find_vars_in_formula:
-                    for area_cliente in self.areas_cliente:
-                        if encuentra_formula_area.area_criterio_independiente:
-                            if variable in area_cliente.product_id.name:
-                                calculo_formula = calculo_formula.replace(variable, str(area_cliente.product_qty))
-                                calculo_formula_final = calculo_formula_final.replace(variable, str(area_cliente.cantidad_final))
-                        if encuentra_formula_area.campo_criterio_independiente:
-                            variable_texto = 'self.formulario_cliente.' + variable
-                            calculo_formula = calculo_formula.replace(variable, str(eval(variable_texto)))
-                            calculo_formula_final = calculo_formula_final.replace(variable, str(eval(variable_texto)))
-                            _logger.critical(variable_texto)
-                            _logger.critical(calculo_formula)
+                    for variable in find_vars_in_formula:
+                        if variable in calculo_formula:
+                            raise exceptions.UserError("Una o más áreas dependientes no se han encontrado, por favor verifique que el área dependiente se encuentre en el listado de Áreas Cliente. Área: (" + variable + ")")
 
-                for variable in find_vars_in_formula:
-                    if variable in calculo_formula:
-                        raise exceptions.UserError("Una o más áreas dependientes no se han encontrado, por favor verifique que el área dependiente se encuentre en el listado de Áreas Cliente. Área: (" + variable + ")")
+                    if formula_area_encontrada.variable_derivada == 'cantidad':
+                        calculo_formula = calculo_formula.replace('"', '')
+                        calculo_formula_final = calculo_formula_final.replace('"', '')
+                        _logger.critical(eval(calculo_formula))  # 1.4
+                        area_derivada.product_qty = eval(calculo_formula)
+                        area_derivada.cantidad_final = eval(calculo_formula_final)
 
-                if encuentra_formula_area.variable_derivada == 'cantidad':
-                    calculo_formula = calculo_formula.replace('"', '')
-                    calculo_formula_final = calculo_formula_final.replace('"', '')
-                    _logger.critical(eval(calculo_formula))  # 1.4
-                    area_derivada.product_qty = eval(calculo_formula)
-                    area_derivada.cantidad_final = eval(calculo_formula_final)
-
-                if encuentra_formula_area.variable_derivada == 'area':
-                    calculo_formula = calculo_formula.replace('"', '')
-                    calculo_formula_final = calculo_formula_final.replace('"', '')
-                    _logger.critical(eval(calculo_formula))  # 1.4
-                    area_derivada.m2 = eval(calculo_formula)
-                    area_derivada.total_m2 = area_derivada.m2 * area_derivada.product_qty
+                    if formula_area_encontrada.variable_derivada == 'area':
+                        calculo_formula = calculo_formula.replace('"', '')
+                        calculo_formula_final = calculo_formula_final.replace('"', '')
+                        _logger.critical(eval(calculo_formula))  # 1.4
+                        area_derivada.m2 = eval(calculo_formula)
+                        area_derivada.total_m2 = area_derivada.m2 * area_derivada.product_qty
 
 
 
 
 
-
-                # for key in find_vars_in_formula:
-                # for i in range(len(find_vars_in_formula)):
-                #     _logger.critical(find_vars_in_formula[i])
-                #     _logger.critical(find_vars_in_formula[i+1])
-                #     _logger.critical('variale encontrada:' + encuentra_formula_area.formula_aritmetica[find_vars_in_formula[i]+1:find_vars_in_formula[i+1]])
-            #
-            # if encuentra_formula_area.variable_derivada == 'cantidad':
-            #     # Para calcular la cantidad se debe utilizar la fórmula aritmética configurada
-            #     # Si se utiliza la fuente de criterio = formulario debo extraer el área o campo independiente
-            #     if encuentra_formula_area.fuente_criterio == 'formulario':
-            #         # _logger.critical(" FORMULA ES FORMULARIO ")
-            #         if encuentra_formula_area.area_criterio_independiente:
-            #             # _logger.critical(" TIENE ÁREA COMO CRITERIO INDEPENDIENTE ")
-            #             for areas_formulario in self.areas_cliente:
-            #                 _logger.critical(areas_formulario)
-            #                 if encuentra_formula_area.area_criterio_independiente.name in areas_formulario.product_id.name:
-            #                     # _logger.critical(" ENCUENTRA ÁREA CRITERIO ")
-            #                     # TODO: Utilizar formula configurada
-            #                     area_derivada.product_qty = areas_formulario.product_qty / 7
-            #                     # self.total_m2_areas += areas_formulario.total_m2
-            #
-            #                     _logger.critical("ÁREAS DERIVADAS FORMULAS -> TOTAL_M2: " + str(self.total_m2_areas))
-
-                    # TODO: Consultar valor del campo_criterio y asignarlo
-                    # if encuentra_formula_area.campo_criterio_independiente:
-                        # self.formulario_cliente
-                    # area_derivada.product_qty = 9999
-                    # ecuentra_formula_area.formula_aritmetica
-                    #
-                    # _logger.critical(" CALC TOTAL_M2 ")
-                    # area_ciente.total_m2 = area_derivada.product_qty * area_ciente.m2
 
         for area_diseño in self.areas_diseño:
             # _logger.warning(area_derivada.bom_line_ids)

@@ -291,7 +291,7 @@
 <!--                                                <field name="product_id.image_128" string="Imágen" widget="image"/>-->
                                                 <field width="300px"  name="product_id" string="Área"  invisible="1"/>
                                                 <field width="300px"  name="product_name_only" string="Área"/>
-                                                <field width="90px" name="product_qty" />
+                                                <field width="90px" string="Cantidad Inicial" name="product_qty" />
                                                 <field width="120px" name="cantidad_final" />
                                             </tree>
                                         </field>
@@ -384,7 +384,7 @@
                                         <field name="company_id" invisible="1"/>
                                         <field width="300px"  name="product_id" string="Área"  invisible="1"/>
                                         <field width="300px"  name="product_name_only" string="Área"/>
-                                        <field name="product_qty" />
+                                        <field string="Cantidad Inicial" name="product_qty" />
                                         <field name="cantidad_final" />
                                         <field name="m2" />
                                         <field name="total_m2" sum="Total" />
@@ -399,7 +399,7 @@
                                         <field name="company_id" invisible="1"/>
                                         <field width="300px"  name="product_tmpl_id" string="Área"  invisible="1"/>
                                         <field width="300px"  name="product_name_only" string="Área"/>
-                                        <field name="product_qty" />
+                                        <field string="Cantidad Inicial" name="product_qty" />
                                         <field name="cantidad_final" />
                                         <field name="m2" />
                                         <field name="total_m2" sum="Total" />
@@ -414,7 +414,7 @@
                                         <field name="company_id" invisible="1"/>
                                         <field width="300px"  name="product_tmpl_id" string="Área"  invisible="1"/>
                                         <field width="300px"  name="product_name_only" string="Área"/>
-                                        <field name="product_qty" />
+                                        <field string="Cantidad Inicial" name="product_qty" />
                                         <field name="cantidad_final" />
                                         <field name="m2" />
                                         <field name="total_m2" sum="Total" />
